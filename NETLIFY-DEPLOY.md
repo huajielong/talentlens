@@ -20,7 +20,7 @@
 也支持 `OPENAI_API_KEY`、`OPENAI_MODEL`、`OPENAI_BASE_URL`。所有密钥仅在服务端读取，不要写入 GitHub 或 `netlify.toml`。
 
 4. `@netlify/database` 和 `netlify/database/migrations/` 让 Netlify 自动创建数据库并应用迁移。不手工在生产数据库执行建表。
-5. 先运行 `npx netlify deploy --build` 验证，再运行 `npx netlify deploy --build --prod` 发布；或连接 GitHub 持续部署。
+5. 先运行 `npx netlify deploy` 验证，再运行 `npx netlify deploy --prod` 发布；CLI 默认执行构建。也可连接 GitHub 持续部署。
 6. 打开正式地址，输入初始化令牌创建公司和管理员。云数据库初始为空，本机客户数据不会自动上传。登录后可使用页面备份导入功能。
 
 ## 行为与限制
