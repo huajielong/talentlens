@@ -1,0 +1,29 @@
+{
+  "name": "talentlens-customer",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node --env-file=.env server.mjs",
+    "test": "node test.mjs && node test-jd.mjs && node test-deepseek.mjs && node test-batch.mjs && node test-optimized.mjs && node test-http.mjs && node test-customer.mjs",
+    "backup": "node --env-file=.env manage.mjs backup",
+    "build": "node scripts/check-build.mjs",
+    "test:cloud": "node test-cloud.mjs"
+  },
+  "license": "MIT",
+  "description": "GitHub evidence-based talent skill profiles for recruitment teams",
+  "dependencies": {
+    "@netlify/database": "^2.0.1",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@babel/generator": "^7.29.8",
+    "@babel/parser": "^7.29.9",
+    "@babel/traverse": "^7.29.10",
+    "@babel/types": "^7.29.8",
+    "@electric-sql/pglite": "^0.2.17",
+    "netlify-cli": "^27.12.0"
+  }
+}

@@ -1,0 +1,8 @@
+import assert from 'node:assert/strict';
+import {model,llmConfig,validateSchema,jobSchema} from './server.mjs';
+const env={DEEPSEEK_API_KEY:'test-only'};assert.equal(llmConfig(env).model,'deepseek-flash');assert.equal(llmConfig({OPENAI_API_KEY:'x',OPENAI_BASE_URL:'https://api.deepseek.com/',OPENAI_MODEL:'deepseek-flash'}).provider,'deepseek');
+const job={title:'工程师',summary:'技能岗位',criteria:[{id:'react',name:'React',weight:3,requirement:'React',sourceQuote:'React',observable:true,rubric:{zero:'无',partial:'部分',strong:'充分'},verificationQuestion:'项目职责？'}]};
+const result=await model(env,async(url,options)=>{assert.equal(url,'https://api.deepseek.com/chat/completions');const body=JSON.parse(options.body);assert.equal(body.response_format.type,'json_object');assert.equal(body.model,'deepseek-flash');assert.equal(body.thinking.type,'disabled');assert.match(body.messages[0].content,/JSON Schema/);assert.equal(body.store,undefined);return {ok:true,json:async()=>({choices:[{finish_reason:'stop',message:{content:JSON.stringify(job)}}]})}},'仅分析证据',{jd:'React'},jobSchema,'job');assert.deepEqual(result,job);
+assert.throws(()=>validateSchema({...job,criteria:[{...job.criteria[0],observable:'true'}]},jobSchema));assert.throws(()=>validateSchema({...job,criteria:[{...job.criteria[0],weight:8}]},jobSchema));assert.throws(()=>validateSchema({...job,extra:'bad'},jobSchema));
+await assert.rejects(()=>model(env,async()=>({ok:false,status:402}),'',{},jobSchema,'job'),/余额不足/);await assert.rejects(()=>model(env,async()=>({ok:true,json:async()=>({choices:[{finish_reason:'length',message:{content:'{}'}}]})}),'',{},jobSchema,'job'),/未完整/);
+console.log('PASS: DeepSeek routing, JSON request/response, field validation, balance and truncation errors.');

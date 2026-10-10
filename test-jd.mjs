@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {locateQuote,parseJob} from './server.mjs';
+assert.equal(locateQuote('熟悉 LLM API、\n  MCP 和 Agent Loop。','熟悉LLM API、 MCP 和 Agent Loop。'),'熟悉 LLM API、\n  MCP 和 Agent Loop。');
+assert.equal(locateQuote('熟悉 LLM。具备沟通能力。','熟悉 LLM……具备沟通能力。'),null);
+assert.equal(locateQuote('熟悉 React','精通 React'),null);
+const criterion={id:'llm',name:'LLM',weight:3,requirement:'熟悉 LLM',sourceQuote:'精通 LLM',observable:true,rubric:{zero:'无',partial:'部分',strong:'充分'},verificationQuestion:'如何应用？'};
+let calls=0;const fixture=async(url,options)=>{const body=JSON.parse(options.body);calls++;if(calls===2){const input=JSON.parse(body.messages[1].content);assert.match(input.validationError,/LLM/);assert.equal(input.previousResult.criteria[0].sourceQuote,'精通 LLM')};const job={title:'开发岗位',summary:'LLM 技能',criteria:[{...criterion,sourceQuote:calls===1?'精通 LLM':'熟悉 LLM'}]};return {ok:true,json:async()=>({choices:[{finish_reason:'stop',message:{content:JSON.stringify(job)}}]})}};
+const result=await parseJob('熟悉 LLM',{DEEPSEEK_API_KEY:'test'},fixture);assert.equal(calls,2);assert.equal(result.criteria[0].sourceQuote,'熟悉 LLM');
+let failures=0;await assert.rejects(()=>parseJob('熟悉 LLM',{DEEPSEEK_API_KEY:'test'},async()=>{failures++;return {ok:true,json:async()=>({choices:[{finish_reason:'stop',message:{content:JSON.stringify({title:'岗位',summary:'摘要',criteria:[criterion]})}}]})}}),/JD 已收到/);assert.equal(failures,2);
+console.log('PASS: whitespace provenance, paraphrase rejection, one repair retry, specific errors and bounded failure.');

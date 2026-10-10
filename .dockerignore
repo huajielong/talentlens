@@ -1,0 +1,11 @@
+.env
+.env.*
+data
+node_modules
+*.jpg
+*.png
+test*.mjs
+preview-customer.mjs
+*.sqlite*
+.git
+.openai
