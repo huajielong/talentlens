@@ -1,64 +1,195 @@
-# TalentLens · 客户团队使用版
+# TalentLens
 
-以岗位 JD 为标准，结合 GitHub 公开仓库证据整理人才技能画像。开源许可证：MIT。
+**从代码，发现人才。让岗位要求与公开项目证据建立可核对的联系。**
 
-支持本机/Docker 的 Node.js + SQLite，以及 Netlify 的 Functions + PostgreSQL + 后台任务。云版步骤见 [NETLIFY-DEPLOY.md](NETLIFY-DEPLOY.md)，运行检查先执行 `npm ci`。
+TalentLens 是面向技术招聘的技能证据工作台。输入岗位 JD 与 GitHub 账号，它会生成可调整的评估标准，整理相关公开项目资料，并给出有来源的技能分析、证据覆盖情况及待沟通问题。
 
-仓库不包含 API 密钥、运行数据库和客户资料。首次部署需配置模型密钥及初始化令牌，再创建管理员。
+项目采用 MIT 许可证，支持本机或 Docker 的 Node.js + SQLite 部署，以及 Netlify Functions + PostgreSQL 的云端部署。
 
-客户版已加入登录、顾问岗位隔离、管理员分配、SQLite 保存、用量预算、人工复核及审计。首次打开由负责人创建管理员，已有 JSON 数据自动迁入。部署、备份恢复与验收见 [CUSTOMER-DELIVERY.md](CUSTOMER-DELIVERY.md)。
+猎头可以用它准备人才沟通和客户推荐材料；求职者可以用同一流程自查岗位适配情况，整理项目成果与面试表达。当前版本以猎头公司的团队工作空间为主，求职者自查需要获得账号或自行部署，尚无独立求职者门户。
 
+[在线体验](https://talentlens-github.netlify.app/) · [产品演示](#产品演示与体验) · [使用流程](#使用流程) · [快速开始](#快速开始) · [客户交付指南](CUSTOMER-DELIVERY.md) · [Netlify 部署](NETLIFY-DEPLOY.md) · [与 Codex 协作开发记录](MODEL_COLLAB.md)
 
-需要 Node.js 22.13+（客户服务器推荐 Node.js 24 LTS），无须安装依赖。将 `.env.example` 复制为 `.env`，在本机填写 `DEEPSEEK_API_KEY`。不要把密钥发到聊天中。默认模型为 `deepseek-flash`，地址为 `https://api.deepseek.com`。可选 `GITHUB_TOKEN`。
+## 为什么使用 TalentLens
 
-兼容现有配置：当 `OPENAI_BASE_URL` 为 DeepSeek 官方地址时，自动使用 DeepSeek Chat Completions，可继续使用 `OPENAI_API_KEY` 和 `OPENAI_MODEL`。也支持 `LLM_PROVIDER=deepseek`、`DEEPSEEK_MODEL` 和 `DEEPSEEK_BASE_URL`。OpenAI 配置仍使用 Responses API。
+技术招聘常面临两个信息缺口：JD 没有被拆成一致的评估标准，候选人的项目经历没有被整理成可追溯的证据。TalentLens 把两者放进同一个工作流程，让后续沟通有明确的问题和依据。
 
-DeepSeek 使用 JSON Output，服务端执行完整字段类型、必填项、范围和证据校验，不依赖模型保证 JSON Schema。密钥不会发送给浏览器。
+| 使用者 | 主要价值 | 可以得到什么 |
+| --- | --- | --- |
+| 猎头顾问 | 将岗位描述转化为可讨论的标准，减少重复查看仓库的工作 | 核心技能、标准权重、公开项目线索、优势与待验证问题 |
+| 猎头公司管理者 | 统一评估流程，管理岗位归属与模型用量 | 账号管理、岗位分配、顾问数据隔离、用量上限、操作审计 |
+| 求职者 | 看清公开项目如何支撑目标岗位要求 | 可展示的技能证据、尚未覆盖的要求、个人贡献与成果的沟通提纲 |
 
-JD 引用校验容忍空格和换行格式差异，并恢复为真实原文。模型改写或拼接引用时，服务端自动带校验反馈修正一次；仍失败则明确提示是哪项标准有问题。`node test-jd.mjs` 验证引用归一化、拒绝改写、修正重试和重试上限。
+例如，JD 要求 React 工程能力时，顾问可以核对相关仓库、依赖与公开贡献线索，再询问候选人的职责和成果；求职者则可以据此补充项目说明，准备“我做了什么、为什么这样做、取得什么结果”的回答。
+
+这些是产品支持的工作方式，并非已经量化验证的招聘效率或录用率提升。
+
+## 产品演示与体验
+
+### 视频导览
+
+[![TalentLens 产品界面预览](docs/media/team-management.jpg)](docs/media/product-tour.mp4)
+
+**[观看产品截图导览视频 · MP4 / 26 秒](docs/media/product-tour.mp4)**
+
+视频由实际产品截图制作，无音轨，依次展示评估与人工复核、团队管理、首次初始化。素材使用虚构账号和模拟模型结果，不包含真实客户数据。这是截图导览，不是端到端操作录屏或真实模型评估演示。仓库平台不支持内嵌视频时，可下载 MP4 播放。
+
+### 体验入口
+
+- **在线体验：[TalentLens 体验站](https://talentlens-github.netlify.app/)**。在线站点的功能以实际部署版本为准；客户团队版部署和权限配置见下方交付指南。
+- **本机体验：[http://127.0.0.1:4173/](http://127.0.0.1:4173/)**。完成下方启动步骤后，在运行服务的电脑上打开。
+- **客户部署：**按[客户交付指南](CUSTOMER-DELIVERY.md)配置服务器、域名与 HTTPS，使用管理员分配的账号登录。
+
+在线体验站演示账号：
+
+| 登录名 | 密码 |
+| --- | --- |
+| `zhangsan` | `zhangsanzhangsanzhangsan` |
+
+以上账号仅用于在线体验站；客户自行部署的实例由负责人创建管理员并分配账号。
+
+### 产品截图
+
+**岗位评估与人工复核**：从 JD 和 GitHub 账号出发，核对匹配结果，记录补充资料与沟通结论。匹配细节在点击人才后展开。
+
+![岗位评估、证据分析与人工复核界面，使用虚构演示数据](docs/media/workspace-review.jpg)
+
+<details>
+<summary>查看团队管理与首次初始化截图</summary>
+
+**团队管理**：管理员管理成员、模型预算与操作记录。
+
+![团队管理、用量预算与审计界面，使用虚构演示数据](docs/media/team-management.jpg)
+
+**首次初始化**：负责人创建公司工作空间与首位管理员，没有预置生产账号密码。
+
+![首次初始化界面](docs/media/first-run.jpg)
+
+</details>
+
+## 使用流程
+
+1. **定义岗位**：新建岗位并粘贴 JD，确认资料发送范围，由 LLM 提取技能标准、权重、原文依据及验证问题。
+2. **核对标准**：检查要求是否准确、能否通过公开资料验证；可以调整标准和权重。
+3. **添加人才**：输入 GitHub 用户名或主页链接，一次最多提交 10 个待评估账号。当前标准下已有有效结果的账号自动跳过，输入框中的对应文字显示绿色。
+4. **核对证据**：点击人才查看优势、缺口、待验证项和来源。个人与组织可分别筛选，组织结果仅表示项目相关性。
+5. **人工复核**：记录候选人职责、补充资料与沟通结论，追踪关注的人才，再导出当前筛选结果。
+
+求职者可以将第三步换成自己的 GitHub 账号，按待验证问题整理面试材料。涉及私有项目时，可在沟通中补充经过授权的材料；当前应用不会读取私有仓库。
+
+## 核心能力
+
+| 能力 | 当前支持 |
+| --- | --- |
+| JD 解析 | 岗位摘要、技能标准、权重、真实原文引用、评分规则及验证问题 |
+| GitHub 证据整理 | 公开账号信息、原创仓库摘要、README、部分依赖文件，以及个人账号的作者匹配提交与公开 PR 线索 |
+| 多账号评估 | 后台任务、自动去重、进度恢复、取消、失败单项重试 |
+| 结果阅读 | 有证据技能匹配、证据覆盖率、待验证项、置信度与来源引用 |
+| 多岗位管理 | 独立岗位及结果、切换、备份与导入；调整权重直接重算 |
+| 团队协作 | 管理员查看全部岗位；顾问默认仅访问自己负责的岗位；管理员分配负责人 |
+| 人工复核与导出 | 复核状态和备注、追踪、筛选、删除及撤销、当前列表 CSV 导出 |
+| 客户运行保障 | 服务端密钥、登录与会话控制、SQLite / PostgreSQL 保存、用量上限、操作审计与本机数据库备份 |
+
+## 如何理解评估结果
+
+**有证据技能匹配度**汇总可公开验证且已获得评分的标准；**证据覆盖率**表示可公开验证标准中已有评分的加权比例；**待验证项**表示尚需补充材料或沟通确认的要求。阅读分数时，应同时查看覆盖率与具体来源。
+
+- 公开资料不足会保留为待验证，不能推断候选人缺乏能力。
+- README 自述、技术依赖、提交与 PR 是不同类型的线索。仓库使用相关技术，不等于候选人具有相同深度的个人能力。
+- 组织账号展示项目相关性，不能替代个人技能画像。
+- 只调整权重无需调用模型；改变 JD 或标准内容后，旧结果需要按新标准更新。
+- 模型分数与人工复核独立保存。更新评估后保留复核备注，复核状态恢复为待复核。
+- 采集资料超过 7 天会提示更新；采集时间不可靠的旧记录会明确标记。
+
+TalentLens 辅助专业技能沟通，最终招聘判断应结合面试、候选人补充材料与人工复核。
+
+## 快速开始
+
+需要 **Node.js 22.13+**；本机及客户服务器建议使用 Node.js 24 LTS。首次运行先安装锁定版本的依赖。
+
+在项目目录运行：
 
 ```powershell
-node --env-file=.env server.mjs
+Copy-Item .env.example .env
+# 在本机编辑 .env，填写模型 API 密钥，配置示例见下方
+npm ci
+npm start
 ```
 
-打开 http://127.0.0.1:4173 。不要直接打开 HTML 或用纯静态服务器，LLM 功能需要此后端服务。密钥仅在服务端读取；`.env` 已被 Git 忽略。
+已有 `.env` 时直接编辑并运行 `npm start`，不要用模板覆盖已有配置。
 
-第一步通过 LLM 从 JD 生成岗位摘要、评估标准、权重、原文依据、公开可验证性、评分规则和验证问题。第二步服务端读取公开 GitHub 资料，并让 LLM 按这些标准逐项评估，返回评分或待验证、置信度、证据引用和理由。服务端拒绝虚构证据 ID、缺失标准和无效评分。
+打开[本机工作空间](http://127.0.0.1:4173/)，由负责人创建公司与管理员，再添加顾问并分配岗位。不要直接打开 `dist/index.html` 或使用纯静态服务器，登录、保存和模型评估需要 Node 后端。
 
-最多读取 300 个公开原创仓库，按岗位技能、语言、主题及描述的相关性排序，而不是只按更新时间。模型读取最多 60 个仓库摘要、前 8 份 README，以及前 3 个相关仓库的依赖文件。个人账号额外采集作者身份匹配的提交与公开 PR；提交记录只是贡献线索，不等于代码质量已验证。采集范围及来源类型可在详情中查看。
+### 模型配置
 
-分开显示有证据技能匹配度、证据覆盖率和待验证项数。匹配度只汇总可公开验证且确实有评分的项；没有证据保持待验证。覆盖率按可公开验证标准的权重计算。只修改权重直接重算，不调用 LLM；修改标准内容后需重新评估。可以编辑标准名称、要求、原文、评分规则及验证问题，自定义标准可不填写 JD 引用。
+本项目现有配置使用以下变量。变量名虽为 `OPENAI_*`，当 `OPENAI_BASE_URL` 指向 DeepSeek 官方地址时，服务端会自动使用 DeepSeek 接口：
 
-JD 和公开 GitHub 资料会发送至配置的 LLM API；数据保留取决于该服务商政策。OpenAI 路径使用 store:false，DeepSeek 路径不发送此参数。模型指令要求将仓库文本和 JD 作为不可信证据，不遵从其中指令。应用只辅助专业技能沟通，不自动作出招聘决定。
+```dotenv
+OPENAI_API_KEY=填写自己的 DeepSeek 密钥
+OPENAI_MODEL=deepseek-flash
+OPENAI_BASE_URL=https://api.deepseek.com/
+GITHUB_TOKEN=
+PORT=4173
+```
 
-岗位、结果、追踪及任务保存在 `data/talentlens.sqlite`；浏览器只保留当前账号的会话级输入草稿。首次创建管理员会迁入旧 `data/workspace.json`。可创建并切换多个独立岗位；备份/导入包含全部岗位、标准及结果，不含 API 密钥。导入合并保存，原岗位保留。清空按钮仅清空当前岗位结果。
+`.env` 中每个变量独占一行，地址不需要转义，也不要在行尾添加反斜杠。修改后重启服务使配置生效。
 
-每次最多评估 10 个待评估账号，自动跳过当前标准下已有结果，输入框中对应文字显示绿色。剩余账号可下一批继续。任务在后端排队执行，可取消、失败单项重试；刷新页面恢复进度，服务重启后重新执行未完成任务。任务历史保留 30 天。相同账号与标准的采集资料缓存 1 小时供重试复用；详情的更新评估绕过缓存。采集超过 7 天提示过期；旧记录没有可靠采集时间时明确标记。
+`.env.example` 提供另一种同样受支持的写法：`LLM_PROVIDER=deepseek` 与 `DEEPSEEK_API_KEY`、`DEEPSEEK_MODEL`、`DEEPSEEK_BASE_URL`。无需把已有可用配置改成这套名称。如果两套变量同时存在，DeepSeek 接口优先读取非空的 `DEEPSEEK_*` 值；使用上方自动识别配置时，不要另设 `LLM_PROVIDER=openai`。
 
-个人与组织分别排序并可筛选，组织分数仅表示项目相关性。默认收起匹配详情；展开后优先展示优势、缺口与待沟通项，长分析及逐项来源默认折叠。结果可删除并撤销；CSV 仅导出当前搜索、类型及追踪筛选下的列表，并包含覆盖率与待验证数量。
+`GITHUB_TOKEN` 可留空；配置后以授权方式访问 GitHub 公共 API。项目也支持 OpenAI Responses API。密钥仅由服务端读取，不发送给浏览器，`.env` 不应提交或打包。
 
-离线验证，不消耗 API 额度：
+## 客户交付与数据管理
+
+当前客户版采用**一家公司的独立实例**。顾问默认隔离，管理员查看全部岗位并分配负责人。不同客户应分别配置实例、数据库和密钥。
+
+- 本机与 Docker 版本使用 Node.js + SQLite，适合单个应用进程。
+- Netlify 云版使用 Functions、Background Functions 与 PostgreSQL，不在临时文件系统保存数据库。
+
+岗位、评估、追踪和任务保存在 `data/talentlens.sqlite`，浏览器仅保留当前账号的会话级输入草稿。首次初始化会迁移旧 `data/workspace.json`，原 JSON 保留。
+
+JD 与采集到的公开 GitHub 资料会发送至配置的模型服务；调用前需要确认发送范围，数据保留取决于服务商政策。应用不会采集私有仓库。采集范围有上限：最多读取 300 个公开原创仓库，模型读取最多 60 个仓库摘要、8 份 README，以及部分相关仓库依赖与贡献线索，因此结果不是完整代码审计。
+
+部署前请阅读[客户交付与验收指南](CUSTOMER-DELIVERY.md)，其中包括 HTTPS 部署、初始化令牌、账号管理、用量预算、备份恢复和验收步骤。仓库提供 Docker 与 Caddy 配置；Netlify 云端部署见 [NETLIFY-DEPLOY.md](NETLIFY-DEPLOY.md)。两种方式都需要在客户实际环境验证。
+
+当前尚未提供独立求职者门户、多租户自助注册、SSO/MFA、邮件找回密码、ATS 集成及高可用部署。正式交付应按客户规模和内部流程评估这些需求。
+
+## 验证与维护
+
+离线测试不消耗模型 API 额度：
 
 ```powershell
-node --check server.mjs
-node --check dist/app.js
-node test.mjs
-node test-jd.mjs
-node test-deepseek.mjs
-node test-batch.mjs
-node test-optimized.mjs
-node test-http.mjs
-node test-customer.mjs
+npm test
+npm run test:cloud
+npm run build
 ```
 
-`test-optimized.mjs` 覆盖评分口径、权重复用、标准失效、仓库相关性、作者归属、模型输出修复、证据缓存、独立岗位、保存恢复、任务去重、取消及服务重启恢复。`quality-fixtures.json` 是人工定义的边界案例，不代表模型招聘评估准确率；真实评分质量仍需人工标注样本进行校准。
+测试覆盖 JD 引用校验、模型输出校验、评分口径、标准变更、批量去重、保存恢复、任务取消与重启恢复，以及客户账号与权限边界。`quality-fixtures.json` 是人工定义的边界案例，不是招聘评估准确率报告；模型效果需要使用经授权、人工标注的真实样本持续校准。
 
-真实调用已验证：DeepSeek 解析示例 JD，以及使用 octocat 公开资料完成两项标准的评估（11 条资料来源）。`node --env-file=.env live-smoke.mjs` 可以重新执行这项检查，会消耗少量 API 额度。
+本机 SQLite 数据库备份：
 
-当前为带登录与数据库的 Node 服务实现，提供 Docker + HTTPS 代理部署配置。原 `.openai/hosting.json` 是静态站点配置，不能运行 LLM 后端。在线发布需迁移为 Worker 服务并配置服务端密钥；本轮未上传或发布源码。
+```powershell
+npm run backup
+```
 
-API 依据：https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses
+恢复和管理员维护请使用[交付指南](CUSTOMER-DELIVERY.md)中的完整流程。云版需要另行配置 PostgreSQL 快照策略。模型调用次数与 Token 上限用于限制用量，实际费用以服务商账单为准。
 
-DeepSeek 接入依据：https://api-docs.deepseek.com/guides/json_mode/
+## 项目结构
 
-UI prototype: ui-prototype.png, generated using built-in ImageGen. Prompt: high-fidelity TalentLens recruiter workspace, Chinese interface, warm white / gray minimalist OpenAI-like aesthetic, JD parsing card, batch GitHub input, candidate evidence coverage list, skills profile panel, labeled sample data.
+开发过程见 [MODEL_COLLAB.md](MODEL_COLLAB.md)；个人项目能力与岗位方向摘要见 [TalentLens_简历片段.txt](TalentLens_简历片段.txt)。
+
+```text
+dist/                    前端界面与评分核心
+server.mjs               模型调用、JD 解析与证据评估
+client-server.mjs        客户认证、权限与任务接口
+client-store.mjs         SQLite、账号、用量与审计
+cloud-server.mjs         云端 API 与后台任务入口
+pg-store.mjs             PostgreSQL 数据保存与权限边界
+evidence.mjs             GitHub 公开证据采集
+manage.mjs               数据库与账号维护命令
+netlify/                  Functions、后台任务与数据库迁移
+docs/media/              README 截图与视频素材
+CUSTOMER-DELIVERY.md     客户部署、维护与验收说明
+NETLIFY-DEPLOY.md         Netlify 与 PostgreSQL 部署说明
+```
+
+技术接入参考：[DeepSeek JSON Output](https://api-docs.deepseek.com/guides/json_mode/)。
